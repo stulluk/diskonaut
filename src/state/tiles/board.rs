@@ -53,6 +53,16 @@ impl Board {
     pub fn set_selected_index(&mut self, next_index: &usize) {
         self.selected_index = Some(*next_index);
     }
+    pub fn select_tile_by_name(&mut self, tile_name: &std::ffi::OsString) {
+        if let Some((index, _)) = self
+            .tiles
+            .iter()
+            .enumerate()
+            .find(|(_, tile)| &tile.name == tile_name)
+        {
+            self.set_selected_index(&index);
+        }
+    }
     pub fn has_selected_index(&self) -> bool {
         self.selected_index.is_some()
     }

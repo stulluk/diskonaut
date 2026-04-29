@@ -1,3 +1,5 @@
+use ::std::collections::HashSet;
+use ::std::ffi::OsString;
 use ::tui::buffer::Buffer;
 use ::tui::layout::Rect;
 use ::tui::style::{Color, Style};
@@ -44,6 +46,7 @@ pub struct RectangleGrid<'a> {
     rectangles: &'a [Tile],
     small_files_coordinates: Option<(u16, u16)>,
     selected_rect_index: Option<usize>,
+    marked_entries: &'a HashSet<OsString>,
 }
 
 impl<'a> RectangleGrid<'a> {
@@ -51,11 +54,13 @@ impl<'a> RectangleGrid<'a> {
         rectangles: &'a [Tile],
         small_files_coordinates: Option<(u16, u16)>,
         selected_rect_index: Option<usize>,
+        marked_entries: &'a HashSet<OsString>,
     ) -> Self {
         RectangleGrid {
             rectangles,
             small_files_coordinates,
             selected_rect_index,
+            marked_entries,
         }
     }
 }
@@ -71,7 +76,8 @@ impl<'a> Widget for RectangleGrid<'a> {
                 } else {
                     false
                 };
-                draw_tile_text_on_grid(buf, &tile, selected);
+                let marked = self.marked_entries.contains(&tile.name);
+                draw_tile_text_on_grid(buf, &tile, selected, marked);
                 draw_rect_on_grid(buf, (tile.x, tile.y), (tile.width, tile.height));
             }
         }

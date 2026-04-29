@@ -1,3 +1,5 @@
+use ::std::collections::HashSet;
+use ::std::ffi::OsString;
 use ::std::path::PathBuf;
 use ::tui::backend::Backend;
 use ::tui::layout::{Constraint, Direction, Layout, Rect};
@@ -7,7 +9,9 @@ use crate::state::files::FileTree;
 use crate::state::tiles::Board;
 use crate::state::UiEffects;
 use crate::ui::grid::RectangleGrid;
-use crate::ui::modals::{ConfirmBox, ErrorBox, MessageBox, WarningBox};
+use crate::ui::modals::{
+    ConfirmBox, CreateDirBox, ErrorBox, MessageBox, MoveSelectionBox, WarningBox,
+};
 use crate::ui::title::TitleLine;
 use crate::ui::{BottomLine, TermTooSmall};
 use crate::UiMode;
@@ -44,6 +48,7 @@ where
         board: &mut Board,
         ui_mode: &UiMode,
         ui_effects: &UiEffects,
+        marked_entries: &HashSet<OsString>,
     ) {
         self.terminal
             .draw(|f| {
@@ -102,6 +107,7 @@ where
                                 &board.tiles,
                                 board.unrenderable_tile_coordinates,
                                 board.selected_index,
+                                marked_entries,
                             ),
                             chunks[1],
                         );
@@ -109,6 +115,7 @@ where
                             BottomLine::new()
                                 .currently_selected(board.currently_selected())
                                 .last_read_path(ui_effects.last_read_path.as_ref())
+                                .status_message(ui_effects.status_message.as_ref())
                                 .hide_delete()
                                 .hide_small_files_legend(
                                     board.unrenderable_tile_coordinates.is_none(),
@@ -134,12 +141,14 @@ where
                                 &board.tiles,
                                 board.unrenderable_tile_coordinates,
                                 board.selected_index,
+                                marked_entries,
                             ),
                             chunks[1],
                         );
                         f.render_widget(
                             BottomLine::new()
                                 .currently_selected(board.currently_selected())
+                                .status_message(ui_effects.status_message.as_ref())
                                 .hide_small_files_legend(
                                     board.unrenderable_tile_coordinates.is_none(),
                                 ),
@@ -166,12 +175,14 @@ where
                                 &board.tiles,
                                 board.unrenderable_tile_coordinates,
                                 board.selected_index,
+                                marked_entries,
                             ),
                             chunks[1],
                         );
                         f.render_widget(
                             BottomLine::new()
                                 .currently_selected(board.currently_selected())
+                                .status_message(ui_effects.status_message.as_ref())
                                 .hide_small_files_legend(
                                     board.unrenderable_tile_coordinates.is_none(),
                                 ),
@@ -204,12 +215,14 @@ where
                                 &board.tiles,
                                 board.unrenderable_tile_coordinates,
                                 board.selected_index,
+                                marked_entries,
                             ),
                             chunks[1],
                         );
                         f.render_widget(
                             BottomLine::new()
                                 .currently_selected(board.currently_selected())
+                                .status_message(ui_effects.status_message.as_ref())
                                 .hide_small_files_legend(
                                     board.unrenderable_tile_coordinates.is_none(),
                                 ),
@@ -235,6 +248,7 @@ where
                             f.render_widget(
                                 BottomLine::new()
                                     .currently_selected(board.currently_selected())
+                                    .status_message(ui_effects.status_message.as_ref())
                                     .hide_small_files_legend(
                                         board.unrenderable_tile_coordinates.is_none(),
                                     ),
@@ -259,6 +273,7 @@ where
                                 BottomLine::new()
                                     .currently_selected(board.currently_selected())
                                     .last_read_path(ui_effects.last_read_path.as_ref())
+                                    .status_message(ui_effects.status_message.as_ref())
                                     .hide_delete()
                                     .hide_small_files_legend(
                                         board.unrenderable_tile_coordinates.is_none(),
@@ -272,6 +287,7 @@ where
                                 &board.tiles,
                                 board.unrenderable_tile_coordinates,
                                 board.selected_index,
+                                marked_entries,
                             ),
                             chunks[1],
                         );
@@ -295,6 +311,7 @@ where
                                 &board.tiles,
                                 board.unrenderable_tile_coordinates,
                                 board.selected_index,
+                                marked_entries,
                             ),
                             chunks[1],
                         );
@@ -302,6 +319,7 @@ where
                             BottomLine::new()
                                 .currently_selected(board.currently_selected())
                                 .last_read_path(ui_effects.last_read_path.as_ref())
+                                .status_message(ui_effects.status_message.as_ref())
                                 .hide_delete()
                                 .hide_small_files_legend(
                                     board.unrenderable_tile_coordinates.is_none(),
@@ -309,6 +327,78 @@ where
                             chunks[2],
                         );
                         f.render_widget(WarningBox::new(), full_screen);
+                    }
+                    UiMode::CreateDirectory { input } => {
+                        f.render_widget(
+                            TitleLine::new(
+                                base_path_info,
+                                current_path_info,
+                                file_tree.space_freed,
+                            )
+                            .path_error(ui_effects.current_path_is_red)
+                            .flash_space(ui_effects.flash_space_freed)
+                            .zoom_level(board.zoom_level)
+                            .read_errors(file_tree.failed_to_read),
+                            chunks[0],
+                        );
+                        f.render_widget(
+                            RectangleGrid::new(
+                                &board.tiles,
+                                board.unrenderable_tile_coordinates,
+                                board.selected_index,
+                                marked_entries,
+                            ),
+                            chunks[1],
+                        );
+                        f.render_widget(
+                            BottomLine::new()
+                                .currently_selected(board.currently_selected())
+                                .status_message(ui_effects.status_message.as_ref())
+                                .hide_small_files_legend(
+                                    board.unrenderable_tile_coordinates.is_none(),
+                                ),
+                            chunks[2],
+                        );
+                        f.render_widget(CreateDirBox::new(input), full_screen);
+                    }
+                    UiMode::MoveSelection {
+                        target_folders,
+                        selected_index,
+                    } => {
+                        f.render_widget(
+                            TitleLine::new(
+                                base_path_info,
+                                current_path_info,
+                                file_tree.space_freed,
+                            )
+                            .path_error(ui_effects.current_path_is_red)
+                            .flash_space(ui_effects.flash_space_freed)
+                            .zoom_level(board.zoom_level)
+                            .read_errors(file_tree.failed_to_read),
+                            chunks[0],
+                        );
+                        f.render_widget(
+                            RectangleGrid::new(
+                                &board.tiles,
+                                board.unrenderable_tile_coordinates,
+                                board.selected_index,
+                                marked_entries,
+                            ),
+                            chunks[1],
+                        );
+                        f.render_widget(
+                            BottomLine::new()
+                                .currently_selected(board.currently_selected())
+                                .status_message(ui_effects.status_message.as_ref())
+                                .hide_small_files_legend(
+                                    board.unrenderable_tile_coordinates.is_none(),
+                                ),
+                            chunks[2],
+                        );
+                        f.render_widget(
+                            MoveSelectionBox::new(target_folders, *selected_index),
+                            full_screen,
+                        );
                     }
                 };
             })

@@ -53,6 +53,15 @@ pub fn handle_keypress_loading_mode<B: Backend>(evt: Event, app: &mut App<B>) {
         key!(char 'd') => {
             app.show_warning_modal();
         }
+        key!(char 'm') => {
+            app.prompt_create_directory();
+        }
+        key!(char 's') => {
+            app.toggle_mark_selected_entry();
+        }
+        key!(char 'c') => {
+            app.prompt_move_marked_entries();
+        }
         key!(char 'l') | key!(Right) | key!(ctrl 'f') => {
             app.move_selected_right();
         }
@@ -98,6 +107,15 @@ pub fn handle_keypress_normal_mode<B: Backend>(evt: Event, app: &mut App<B>) {
         key!(char 'd') => {
             app.prompt_file_deletion();
         }
+        key!(char 'm') => {
+            app.prompt_create_directory();
+        }
+        key!(char 's') => {
+            app.toggle_mark_selected_entry();
+        }
+        key!(char 'c') => {
+            app.prompt_move_marked_entries();
+        }
         key!(Delete) => {
             app.prompt_file_deletion();
         }
@@ -127,6 +145,53 @@ pub fn handle_keypress_normal_mode<B: Backend>(evt: Event, app: &mut App<B>) {
         }
         key!(Esc) => {
             app.go_up();
+        }
+        _ => (),
+    };
+}
+
+pub fn handle_keypress_create_directory_mode<B: Backend>(evt: Event, app: &mut App<B>) {
+    match evt {
+        key!(ctrl 'c') => {
+            app.exit();
+        }
+        key!(Esc) => {
+            app.normal_mode();
+        }
+        key!(Backspace) => {
+            app.remove_create_directory_input_char();
+        }
+        key!(char '\n') | key!(Enter) => {
+            app.submit_create_directory();
+        }
+        Event::Key(KeyEvent {
+            code: KeyCode::Char(ch),
+            modifiers,
+        }) if !modifiers.contains(KeyModifiers::CONTROL)
+            && !modifiers.contains(KeyModifiers::ALT) =>
+        {
+            app.add_create_directory_input_char(ch);
+        }
+        _ => (),
+    };
+}
+
+pub fn handle_keypress_move_selection_mode<B: Backend>(evt: Event, app: &mut App<B>) {
+    match evt {
+        key!(char 'q') => {
+            app.exit();
+        }
+        key!(Esc) => {
+            app.normal_mode();
+        }
+        key!(char 'h') | key!(Left) | key!(char 'k') | key!(Up) => {
+            app.move_destination_selection_left();
+        }
+        key!(char 'l') | key!(Right) | key!(char 'j') | key!(Down) => {
+            app.move_destination_selection_right();
+        }
+        key!(char '\n') | key!(Enter) => {
+            app.confirm_move_marked_entries();
         }
         _ => (),
     };

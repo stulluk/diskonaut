@@ -69,8 +69,8 @@ fn render_controls_legend(buf: &mut Buffer, hide_delete: bool, max_len: u16, y: 
         )
     } else {
         (
-            String::from("<arrows> - move around, <ENTER> - enter folder, <ESC> - parent folder, <DELETE/d> - delete, <+/-/0> - zoom in/out/reset, <q> - quit"),
-            String::from("←↓↑→/<ENTER>/<ESC>: navigate, <DELETE/d>: del")
+            String::from("<arrows> move, <ENTER> open, <ESC> up, <DELETE/d> delete, <m> mkdir, <s> mark, <c> move-marked, <+/-/0> zoom, <q> quit"),
+            String::from("←↓↑→ nav, <DELETE/d> del, <m> mkdir, <s> mark, <c> move")
         )
     };
     let too_small_line = "(...)";
@@ -117,6 +117,7 @@ pub struct BottomLine<'a> {
     hide_small_files_legend: bool,
     currently_selected: Option<&'a Tile>,
     last_read_path: Option<&'a PathBuf>,
+    status_message: Option<&'a String>,
 }
 
 impl<'a> BottomLine<'a> {
@@ -126,6 +127,7 @@ impl<'a> BottomLine<'a> {
             hide_small_files_legend: false,
             currently_selected: None,
             last_read_path: None,
+            status_message: None,
         }
     }
     pub fn hide_delete(mut self) -> Self {
@@ -144,6 +146,10 @@ impl<'a> BottomLine<'a> {
         self.last_read_path = last_read_path;
         self
     }
+    pub fn status_message(mut self, status_message: Option<&'a String>) -> Self {
+        self.status_message = status_message;
+        self
+    }
 }
 
 impl<'a> Widget for BottomLine<'a> {
@@ -158,7 +164,14 @@ impl<'a> Widget for BottomLine<'a> {
         let max_controls_len = area.width - 1;
         let status_line_y = area.y + area.height - 2;
         let controls_line_y = status_line_y + 1;
-        if let Some(currently_selected) = self.currently_selected {
+        if let Some(status_message) = self.status_message {
+            buf.set_string(
+                1,
+                status_line_y,
+                truncate_middle(status_message, max_status_len),
+                Style::default().add_modifier(Modifier::BOLD),
+            );
+        } else if let Some(currently_selected) = self.currently_selected {
             render_currently_selected(buf, currently_selected, max_status_len, status_line_y);
         } else if let Some(last_read_path) = self.last_read_path {
             render_last_read_path(buf, last_read_path, max_status_len, status_line_y);

@@ -6,8 +6,10 @@ use ::tui::backend::Backend;
 use crossterm::event::Event as BackEvent;
 
 use crate::input::{
+    handle_keypress_create_directory_mode,
     handle_keypress_delete_file_mode, handle_keypress_error_message, handle_keypress_exiting_mode,
     handle_keypress_loading_mode, handle_keypress_normal_mode, handle_keypress_screen_too_small,
+    handle_keypress_move_selection_mode,
     handle_keypress_warning_message,
 };
 use crate::{App, UiMode};
@@ -25,6 +27,8 @@ pub enum Instruction {
     ResetUiMode,
     Keypress(BackEvent),
     IncrementFailedToRead,
+    SetStatusMessage(String),
+    ClearStatusMessage,
 }
 
 pub fn handle_instructions<B>(app: &mut App<B>, receiver: Receiver<Instruction>)
@@ -90,6 +94,15 @@ where
                     UiMode::WarningMessage(_) => {
                         handle_keypress_warning_message(evt, app);
                     }
+                    UiMode::CreateDirectory { input: _ } => {
+                        handle_keypress_create_directory_mode(evt, app);
+                    }
+                    UiMode::MoveSelection {
+                        target_folders: _,
+                        selected_index: _,
+                    } => {
+                        handle_keypress_move_selection_mode(evt, app);
+                    }
                 }
                 if !app.is_running {
                     break;
@@ -97,6 +110,12 @@ where
             }
             Instruction::IncrementFailedToRead => {
                 app.increment_failed_to_read();
+            }
+            Instruction::SetStatusMessage(message) => {
+                app.set_status_message(message);
+            }
+            Instruction::ClearStatusMessage => {
+                app.clear_status_message();
             }
         }
     }

@@ -14,6 +14,7 @@ pub struct UiEffects {
     pub delete_prompt_selection: DeletePromptSelection,
     pub loading_progress_indicator: u64,
     pub last_read_path: Option<PathBuf>,
+    pub status_message: Option<String>,
 }
 
 impl UiEffects {
@@ -25,6 +26,7 @@ impl UiEffects {
             delete_prompt_selection: DeletePromptSelection::No,
             loading_progress_indicator: 0,
             last_read_path: None,
+            status_message: None,
         }
     }
     pub fn increment_loading_progress_indicator(&mut self) {

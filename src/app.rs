@@ -1,4 +1,7 @@
 use ::std::fs::{self, Metadata};
+use ::std::ffi::OsString;
+use ::std::collections::HashSet;
+use ::std::io::ErrorKind;
 use ::std::mem::ManuallyDrop;
 use ::std::path::PathBuf;
 use ::std::sync::mpsc::{Receiver, SyncSender};
@@ -6,7 +9,7 @@ use ::tui::backend::Backend;
 
 use crate::messages::{handle_instructions, Instruction};
 use crate::state::files::{FileOrFolder, FileTree, Folder};
-use crate::state::tiles::Board;
+use crate::state::tiles::{Board, FileType};
 use crate::state::{DeletePromptSelection, FileToDelete, UiEffects};
 use crate::ui::Display;
 use crate::Event;
@@ -20,6 +23,11 @@ pub enum UiMode {
     ErrorMessage(String),
     Exiting { app_loaded: bool },
     WarningMessage(FileToDelete),
+    CreateDirectory { input: String },
+    MoveSelection {
+        target_folders: Vec<OsString>,
+        selected_index: usize,
+    },
 }
 
 pub struct App<B>
@@ -35,6 +43,7 @@ where
     event_sender: SyncSender<Event>,
     ui_effects: UiEffects,
     delete_confirmation_disabled: bool,
+    marked_entries: HashSet<OsString>,
 }
 
 impl<B> App<B>
@@ -68,6 +77,7 @@ where
             event_sender,
             ui_effects,
             delete_confirmation_disabled: disable_delete_confirmation,
+            marked_entries: HashSet::new(),
         }
     }
     pub fn start(&mut self, receiver: Receiver<Instruction>) {
@@ -92,6 +102,7 @@ where
             &mut self.board,
             &self.ui_mode,
             &self.ui_effects,
+            &self.marked_entries,
         );
     }
     pub fn flash_space_freed(&mut self) {
@@ -109,6 +120,7 @@ where
     pub fn start_ui(&mut self) {
         self.ui_mode = UiMode::Normal;
         self.loaded = true;
+        self.marked_entries.clear();
         self.render_and_update_board();
     }
     pub fn add_entry_to_base_folder(&mut self, file_metadata: &Metadata, entry_path: PathBuf) {
@@ -233,6 +245,198 @@ where
         self.ui_mode = UiMode::Normal;
         self.render_and_update_board();
     }
+    pub fn prompt_create_directory(&mut self) {
+        self.ui_mode = UiMode::CreateDirectory {
+            input: String::new(),
+        };
+        self.render();
+    }
+    pub fn add_create_directory_input_char(&mut self, ch: char) {
+        if ch == '/' || ch == '\\' || ch.is_control() {
+            return;
+        }
+        if let UiMode::CreateDirectory { input } = &mut self.ui_mode {
+            input.push(ch);
+            self.render();
+        }
+    }
+    pub fn remove_create_directory_input_char(&mut self) {
+        if let UiMode::CreateDirectory { input } = &mut self.ui_mode {
+            input.pop();
+            self.render();
+        }
+    }
+    pub fn submit_create_directory(&mut self) {
+        let input = match &self.ui_mode {
+            UiMode::CreateDirectory { input } => input.trim().to_string(),
+            _ => return,
+        };
+        if input.is_empty() {
+            self.ui_mode = UiMode::ErrorMessage("Directory name cannot be empty".to_string());
+            self.render();
+            return;
+        }
+        let mut dir_path = self.file_tree.get_current_path();
+        dir_path.push(&input);
+        match fs::create_dir(&dir_path) {
+            Ok(_) => {
+                if let Ok(metadata) = fs::metadata(&dir_path) {
+                    self.file_tree.add_entry(&metadata, &dir_path);
+                }
+                let _ = self
+                    .event_sender
+                    .try_send(Event::StatusMessage(format!("{} directory created", input)));
+                self.ui_mode = UiMode::Normal;
+                self.render_and_update_board();
+            }
+            Err(msg) => {
+                if msg.kind() == ErrorKind::AlreadyExists {
+                    if dir_path.is_dir() {
+                        let _ = self.event_sender.try_send(Event::StatusMessage(
+                            "directory already exists".to_string(),
+                        ));
+                        self.ui_mode = UiMode::Normal;
+                        self.render_and_update_board();
+                    } else {
+                        self.ui_mode = UiMode::ErrorMessage(format!("{}", msg));
+                        self.render();
+                    }
+                } else {
+                    self.ui_mode = UiMode::ErrorMessage(format!("{}", msg));
+                    self.render();
+                }
+            }
+        }
+    }
+    pub fn toggle_mark_selected_entry(&mut self) {
+        if let Some(tile) = self.board.currently_selected() {
+            let tile_name = tile.name.clone();
+            if self.marked_entries.contains(&tile_name) {
+                self.marked_entries.remove(&tile_name);
+            } else {
+                self.marked_entries.insert(tile_name);
+            }
+            self.render();
+        }
+    }
+    pub fn prompt_move_marked_entries(&mut self) {
+        if self.marked_entries.is_empty() {
+            return;
+        }
+        let current_folder = self.file_tree.get_current_folder();
+        let mut target_folders: Vec<OsString> = current_folder
+            .contents
+            .iter()
+            .filter_map(|(name, file_or_folder)| match file_or_folder {
+                FileOrFolder::Folder(_) => {
+                    if self.marked_entries.contains(name) {
+                        None
+                    } else {
+                        Some(name.clone())
+                    }
+                }
+                FileOrFolder::File(_) => None,
+            })
+            .collect();
+        target_folders.sort();
+        if target_folders.is_empty() {
+            self.ui_mode =
+                UiMode::ErrorMessage("No destination subdirectory available".to_string());
+            self.render();
+            return;
+        }
+        self.ui_mode = UiMode::MoveSelection {
+            target_folders,
+            selected_index: 0,
+        };
+        self.render();
+    }
+    pub fn move_destination_selection_left(&mut self) {
+        if let UiMode::MoveSelection {
+            target_folders,
+            selected_index,
+        } = &mut self.ui_mode
+        {
+            if target_folders.is_empty() {
+                return;
+            }
+            if *selected_index == 0 {
+                *selected_index = target_folders.len() - 1;
+            } else {
+                *selected_index -= 1;
+            }
+            self.render();
+        }
+    }
+    pub fn move_destination_selection_right(&mut self) {
+        if let UiMode::MoveSelection {
+            target_folders,
+            selected_index,
+        } = &mut self.ui_mode
+        {
+            if target_folders.is_empty() {
+                return;
+            }
+            *selected_index = (*selected_index + 1) % target_folders.len();
+            self.render();
+        }
+    }
+    pub fn confirm_move_marked_entries(&mut self) {
+        let (target_folder, marked_entries): (OsString, Vec<OsString>) = match &self.ui_mode {
+            UiMode::MoveSelection {
+                target_folders,
+                selected_index,
+            } => {
+                let target_folder = target_folders
+                    .get(*selected_index)
+                    .expect("selected move target should exist")
+                    .clone();
+                let marked_entries = self.marked_entries.iter().cloned().collect();
+                (target_folder, marked_entries)
+            }
+            _ => return,
+        };
+
+        let current_path = self.file_tree.get_current_path();
+        let mut target_dir_full_path = current_path.clone();
+        target_dir_full_path.push(&target_folder);
+        for item_name in &marked_entries {
+            let mut src = current_path.clone();
+            src.push(item_name);
+            let mut dst = target_dir_full_path.clone();
+            dst.push(item_name);
+            match fs::rename(&src, &dst) {
+                Ok(_) => {
+                    let path_to_file = {
+                        let mut path = self.file_tree.current_folder_names.clone();
+                        path.push(item_name.clone());
+                        path
+                    };
+                    let file_to_delete = FileToDelete {
+                        path_in_filesystem: self.file_tree.path_in_filesystem.clone(),
+                        path_to_file,
+                        file_type: FileType::File,
+                        num_descendants: None,
+                        size: 0,
+                    };
+                    self.file_tree.delete_file(&file_to_delete);
+                    if let Ok(metadata) = fs::metadata(&dst) {
+                        self.file_tree.add_entry(&metadata, &dst);
+                    }
+                }
+                Err(msg) => {
+                    self.ui_mode = UiMode::ErrorMessage(format!("{}", msg));
+                    self.render();
+                    return;
+                }
+            }
+        }
+        self.marked_entries.clear();
+        self.ui_mode = UiMode::Normal;
+        self.render_and_update_board();
+        self.board.select_tile_by_name(&target_folder);
+        self.render();
+    }
     pub fn disable_delete_confirmation(&mut self) {
         self.delete_confirmation_disabled = true;
     }
@@ -302,6 +506,12 @@ where
     pub fn increment_failed_to_read(&mut self) {
         self.file_tree.failed_to_read += 1;
     }
+    pub fn set_status_message(&mut self, message: String) {
+        self.ui_effects.status_message = Some(message);
+    }
+    pub fn clear_status_message(&mut self) {
+        self.ui_effects.status_message = None;
+    }
     pub fn zoom_in(&mut self) {
         let current_folder = self.file_tree.get_current_folder();
         self.board.zoom_in(current_folder);
@@ -319,6 +529,9 @@ where
     }
     fn remove_file_from_ui(&mut self, file_to_delete: &FileToDelete) {
         let previous_selected_index = self.board.get_selected_index();
+        if let Some(last_item) = file_to_delete.path_to_file.last() {
+            self.marked_entries.remove(last_item);
+        }
         self.file_tree.space_freed += file_to_delete.size;
         self.file_tree.delete_file(file_to_delete);
         let current_folder = self.file_tree.get_current_folder();

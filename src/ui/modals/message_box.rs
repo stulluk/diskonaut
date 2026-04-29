@@ -3,6 +3,7 @@ use ::tui::layout::Rect;
 use ::tui::style::{Color, Modifier, Style};
 use ::tui::widgets::Widget;
 
+use crate::state::DeletePromptSelection;
 use crate::state::tiles::FileType;
 use crate::state::FileToDelete;
 use crate::ui::format::truncate_middle;
@@ -28,12 +29,17 @@ fn truncated_file_name_line(file_to_delete: &FileToDelete, max_len: u16) -> Stri
     }
 }
 
-fn render_deletion_prompt(buf: &mut Buffer, message_rect: &Rect, file_to_delete: &FileToDelete) {
+fn render_deletion_prompt(
+    buf: &mut Buffer,
+    message_rect: &Rect,
+    file_to_delete: &FileToDelete,
+    selected_action: DeletePromptSelection,
+) {
     let max_text_len = message_rect.width - 4;
     let file_name_line = truncated_file_name_line(file_to_delete, max_text_len);
     let text_style = Style::default()
         .bg(Color::Black)
-        .fg(Color::Red)
+        .fg(Color::Yellow)
         .add_modifier(Modifier::BOLD);
     let question_line = match file_to_delete.file_type {
         FileType::File => {
@@ -60,15 +66,28 @@ fn render_deletion_prompt(buf: &mut Buffer, message_rect: &Rect, file_to_delete:
             }
         }
     };
-    let y_n_line = "(y/n)";
     let question_line_start_position =
         ((message_rect.width - question_line.len() as u16) as f64 / 2.0).ceil() as u16
             + message_rect.x;
     let file_name_line_start_position =
         ((message_rect.width - file_name_line.len() as u16) as f64 / 2.0).ceil() as u16
             + message_rect.x;
-    let y_n_line_start_position =
-        ((message_rect.width - y_n_line.len() as u16) as f64 / 2.0).ceil() as u16 + message_rect.x;
+    let no_label = " no ";
+    let yes_label = " yes ";
+    let dont_ask_label = " don't ask me again ";
+    let between = "  ";
+    let options_total_len = (no_label.len() + yes_label.len() + dont_ask_label.len() + between.len() * 2)
+        as u16;
+    let options_start_position =
+        ((message_rect.width - options_total_len) as f64 / 2.0).ceil() as u16 + message_rect.x;
+    let selected_style = Style::default()
+        .bg(Color::White)
+        .fg(Color::Black)
+        .add_modifier(Modifier::BOLD);
+    let normal_option_style = Style::default()
+        .bg(Color::Black)
+        .fg(Color::Yellow)
+        .add_modifier(Modifier::BOLD);
     buf.set_string(
         question_line_start_position,
         message_rect.y + message_rect.height / 2 - 3,
@@ -81,12 +100,29 @@ fn render_deletion_prompt(buf: &mut Buffer, message_rect: &Rect, file_to_delete:
         file_name_line,
         text_style,
     );
-    buf.set_string(
-        y_n_line_start_position,
-        message_rect.y + message_rect.height / 2 + 3,
-        y_n_line,
-        text_style,
-    );
+    let options_y = message_rect.y + message_rect.height / 2 + 3;
+    let mut x = options_start_position;
+    let no_style = match selected_action {
+        DeletePromptSelection::No => selected_style,
+        _ => normal_option_style,
+    };
+    buf.set_string(x, options_y, no_label, no_style);
+    x += no_label.len() as u16;
+    buf.set_string(x, options_y, between, normal_option_style);
+    x += between.len() as u16;
+    let yes_style = match selected_action {
+        DeletePromptSelection::Yes => selected_style,
+        _ => normal_option_style,
+    };
+    buf.set_string(x, options_y, yes_label, yes_style);
+    x += yes_label.len() as u16;
+    buf.set_string(x, options_y, between, normal_option_style);
+    x += between.len() as u16;
+    let dont_ask_style = match selected_action {
+        DeletePromptSelection::DontAskAgain => selected_style,
+        _ => normal_option_style,
+    };
+    buf.set_string(x, options_y, dont_ask_label, dont_ask_style);
 }
 
 fn render_deletion_in_progress(
@@ -99,7 +135,7 @@ fn render_deletion_in_progress(
     let deleting_line = "Deleting";
     let text_style = Style::default()
         .bg(Color::Black)
-        .fg(Color::Red)
+        .fg(Color::Yellow)
         .add_modifier(Modifier::BOLD);
     let deleting_line_start_position =
         ((message_rect.width - deleting_line.len() as u16) as f64 / 2.0).ceil() as u16
@@ -124,13 +160,19 @@ fn render_deletion_in_progress(
 pub struct MessageBox<'a> {
     file_to_delete: &'a FileToDelete,
     deletion_in_progress: bool,
+    selected_action: DeletePromptSelection,
 }
 
 impl<'a> MessageBox<'a> {
-    pub fn new(file_to_delete: &'a FileToDelete, deletion_in_progress: bool) -> Self {
+    pub fn new(
+        file_to_delete: &'a FileToDelete,
+        deletion_in_progress: bool,
+        selected_action: DeletePromptSelection,
+    ) -> Self {
         Self {
             file_to_delete,
             deletion_in_progress,
+            selected_action,
         }
     }
 }
@@ -157,14 +199,19 @@ impl<'a> Widget for MessageBox<'a> {
         };
         let fill_style = Style::default()
             .bg(Color::Black)
-            .fg(Color::Red)
+            .fg(Color::Yellow)
             .add_modifier(Modifier::BOLD);
 
         draw_filled_rect(buf, fill_style, &message_rect);
         if self.deletion_in_progress {
             render_deletion_in_progress(buf, &message_rect, &self.file_to_delete);
         } else {
-            render_deletion_prompt(buf, &message_rect, &self.file_to_delete);
+            render_deletion_prompt(
+                buf,
+                &message_rect,
+                &self.file_to_delete,
+                self.selected_action,
+            );
         }
     }
 }

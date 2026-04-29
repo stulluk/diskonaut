@@ -7,7 +7,7 @@ use ::tui::backend::Backend;
 use crate::messages::{handle_instructions, Instruction};
 use crate::state::files::{FileOrFolder, FileTree, Folder};
 use crate::state::tiles::Board;
-use crate::state::{FileToDelete, UiEffects};
+use crate::state::{DeletePromptSelection, FileToDelete, UiEffects};
 use crate::ui::Display;
 use crate::Event;
 
@@ -216,6 +216,7 @@ where
     }
     pub fn prompt_file_deletion(&mut self) {
         if let Some(file_to_delete) = self.get_file_to_delete() {
+            self.ui_effects.delete_prompt_selection = DeletePromptSelection::No;
             self.ui_mode = UiMode::DeleteFile(file_to_delete.clone());
 
             if self.delete_confirmation_disabled {
@@ -231,6 +232,39 @@ where
     pub fn normal_mode(&mut self) {
         self.ui_mode = UiMode::Normal;
         self.render_and_update_board();
+    }
+    pub fn disable_delete_confirmation(&mut self) {
+        self.delete_confirmation_disabled = true;
+    }
+    pub fn move_delete_prompt_selection_left(&mut self) {
+        self.ui_effects.delete_prompt_selection = match self.ui_effects.delete_prompt_selection {
+            DeletePromptSelection::No => DeletePromptSelection::DontAskAgain,
+            DeletePromptSelection::Yes => DeletePromptSelection::No,
+            DeletePromptSelection::DontAskAgain => DeletePromptSelection::Yes,
+        };
+        self.render();
+    }
+    pub fn move_delete_prompt_selection_right(&mut self) {
+        self.ui_effects.delete_prompt_selection = match self.ui_effects.delete_prompt_selection {
+            DeletePromptSelection::No => DeletePromptSelection::Yes,
+            DeletePromptSelection::Yes => DeletePromptSelection::DontAskAgain,
+            DeletePromptSelection::DontAskAgain => DeletePromptSelection::No,
+        };
+        self.render();
+    }
+    pub fn confirm_delete_prompt_selection(&mut self, file_to_delete: &FileToDelete) {
+        match self.ui_effects.delete_prompt_selection {
+            DeletePromptSelection::No => {
+                self.normal_mode();
+            }
+            DeletePromptSelection::Yes => {
+                self.delete_file(file_to_delete);
+            }
+            DeletePromptSelection::DontAskAgain => {
+                self.disable_delete_confirmation();
+                self.delete_file(file_to_delete);
+            }
+        }
     }
     pub fn delete_file(&mut self, file_to_delete: &FileToDelete) {
         self.ui_effects.deletion_in_progress = true;

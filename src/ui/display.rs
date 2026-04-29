@@ -178,7 +178,11 @@ where
                             chunks[2],
                         );
                         f.render_widget(
-                            MessageBox::new(file_to_delete, ui_effects.deletion_in_progress),
+                            MessageBox::new(
+                                file_to_delete,
+                                ui_effects.deletion_in_progress,
+                                ui_effects.delete_prompt_selection,
+                            ),
                             full_screen,
                         );
                     }

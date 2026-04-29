@@ -47,6 +47,9 @@ pub fn handle_keypress_loading_mode<B: Backend>(evt: Event, app: &mut App<B>) {
         key!(ctrl 'c') | key!(char 'q') => {
             app.prompt_exit();
         }
+        key!(char 'd') => {
+            app.show_warning_modal();
+        }
         key!(char 'l') | key!(Right) | key!(ctrl 'f') => {
             app.move_selected_right();
         }
@@ -71,7 +74,7 @@ pub fn handle_keypress_loading_mode<B: Backend>(evt: Event, app: &mut App<B>) {
         key!(char '\n') | key!(Enter) => {
             app.handle_enter();
         }
-        key!(Backspace) => {
+        key!(Delete) => {
             app.show_warning_modal();
         }
         key!(Esc) => {
@@ -86,7 +89,10 @@ pub fn handle_keypress_normal_mode<B: Backend>(evt: Event, app: &mut App<B>) {
         key!(ctrl 'c') | key!(char 'q') => {
             app.prompt_exit();
         }
-        key!(Backspace) => {
+        key!(char 'd') => {
+            app.prompt_file_deletion();
+        }
+        key!(Delete) => {
             app.prompt_file_deletion();
         }
         key!(char 'l') | key!(Right) | key!(ctrl 'f') => {
@@ -126,11 +132,17 @@ pub fn handle_keypress_delete_file_mode<B: Backend>(
     file_to_delete: FileToDelete,
 ) {
     match evt {
-        key!(ctrl 'c') | key!(char 'q') | key!(Esc) | key!(char 'n') => {
+        key!(ctrl 'c') | key!(char 'q') | key!(Esc) => {
             app.normal_mode();
         }
-        key!(char 'y') => {
-            app.delete_file(&file_to_delete);
+        key!(char 'h') | key!(Left) => {
+            app.move_delete_prompt_selection_left();
+        }
+        key!(char 'l') | key!(Right) => {
+            app.move_delete_prompt_selection_right();
+        }
+        key!(char '\n') | key!(Enter) => {
+            app.confirm_delete_prompt_selection(&file_to_delete);
         }
         _ => (),
     };

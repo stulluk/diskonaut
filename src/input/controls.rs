@@ -44,7 +44,10 @@ macro_rules! key {
 
 pub fn handle_keypress_loading_mode<B: Backend>(evt: Event, app: &mut App<B>) {
     match evt {
-        key!(ctrl 'c') | key!(char 'q') => {
+        key!(char 'q') => {
+            app.exit();
+        }
+        key!(ctrl 'c') => {
             app.prompt_exit();
         }
         key!(char 'd') => {
@@ -86,7 +89,10 @@ pub fn handle_keypress_loading_mode<B: Backend>(evt: Event, app: &mut App<B>) {
 
 pub fn handle_keypress_normal_mode<B: Backend>(evt: Event, app: &mut App<B>) {
     match evt {
-        key!(ctrl 'c') | key!(char 'q') => {
+        key!(char 'q') => {
+            app.exit();
+        }
+        key!(ctrl 'c') => {
             app.prompt_exit();
         }
         key!(char 'd') => {
@@ -132,7 +138,10 @@ pub fn handle_keypress_delete_file_mode<B: Backend>(
     file_to_delete: FileToDelete,
 ) {
     match evt {
-        key!(ctrl 'c') | key!(char 'q') | key!(Esc) => {
+        key!(char 'q') => {
+            app.exit();
+        }
+        key!(ctrl 'c') | key!(Esc) => {
             app.normal_mode();
         }
         key!(char 'h') | key!(Left) => {
@@ -150,7 +159,10 @@ pub fn handle_keypress_delete_file_mode<B: Backend>(
 
 pub fn handle_keypress_error_message<B: Backend>(evt: Event, app: &mut App<B>) {
     match evt {
-        key!(ctrl 'c') | key!(char 'q') | key!(Esc) => {
+        key!(char 'q') => {
+            app.exit();
+        }
+        key!(ctrl 'c') | key!(Esc) => {
             app.normal_mode();
         }
         _ => (),
@@ -168,7 +180,10 @@ pub fn handle_keypress_screen_too_small<B: Backend>(evt: Event, app: &mut App<B>
 
 pub fn handle_keypress_exiting_mode<B: Backend>(evt: Event, app: &mut App<B>) {
     match evt {
-        key!(ctrl 'c') | key!(char 'q') | key!(Esc) | key!(char 'n') => {
+        key!(char 'q') => {
+            app.exit();
+        }
+        key!(ctrl 'c') | key!(Esc) | key!(char 'n') => {
             app.reset_ui_mode();
             // we have to manually call render here to make sure ui gets updated
             // because reset_ui_mode does not call it itself

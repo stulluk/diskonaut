@@ -13,6 +13,7 @@ use ::jwalk::Parallelism::{RayonDefaultPool, Serial};
 use ::jwalk::WalkDir;
 use ::std::env;
 use ::std::io;
+use ::std::io::Write;
 use ::std::path::PathBuf;
 use ::std::process;
 use ::std::sync::atomic::{AtomicBool, Ordering};
@@ -96,6 +97,9 @@ fn try_main() -> Result<(), failure::Error> {
         Err(_) => failure::bail!("Failed to get stdout: are you trying to pipe 'diskonaut'?"),
     }
     disable_raw_mode()?;
+    // Ensure the shell prompt starts from a clean line after TUI exit.
+    print!("\r\n");
+    io::stdout().flush()?;
     Ok(())
 }
 

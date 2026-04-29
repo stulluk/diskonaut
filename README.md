@@ -19,6 +19,7 @@ Changes are intentionally user-driven and may differ from upstream behavior.
 - Implemented session-scoped `don't ask me again` behavior for deletion.
 - Updated `q` behavior to exit immediately without exit confirmation popup.
 - Fixed post-delete selection behavior so the cursor stays near the deleted tile instead of jumping to top-left.
+- Fixed shell prompt alignment on exit by resetting to a clean new line after TUI teardown.
 
 ### Static Binary Build in Docker (Linux musl)
 

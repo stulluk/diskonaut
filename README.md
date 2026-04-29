@@ -20,6 +20,16 @@ Changes are intentionally user-driven and may differ from upstream behavior.
 - Updated `q` behavior to exit immediately without exit confirmation popup.
 - Fixed post-delete selection behavior so the cursor stays near the deleted tile instead of jumping to top-left.
 - Fixed shell prompt alignment on exit by resetting to a clean new line after TUI teardown.
+- Added `move-backup-to-subdir` workflow with `m/s/c` shortcuts.
+- Added `m` popup with textbox to create subdirectories without leaving the current view.
+- Added `s` multi-select marking with green tile highlighting for files and folders.
+- Added `c` move popup to move all marked entries into a selected subdirectory.
+- Updated move destination popup to render folders as a vertical list with up/down navigation and auto-scroll.
+- Added temporary 2-second status messages in the bottom status bar for mkdir and similar workflow feedback.
+- Updated mkdir behavior to be `mkdir -p`-like when the target directory already exists.
+- Fixed mkdir input handling to allow uppercase letters and shifted characters.
+- Fixed mkdir popup so typing `q` no longer exits the app.
+- Updated bottom legend to include `m/s/c` workflow shortcuts.
 
 ### Static Binary Build in Docker (Linux musl)
 

@@ -318,8 +318,17 @@ where
         self.render();
     }
     fn remove_file_from_ui(&mut self, file_to_delete: &FileToDelete) {
+        let previous_selected_index = self.board.get_selected_index();
         self.file_tree.space_freed += file_to_delete.size;
         self.file_tree.delete_file(file_to_delete);
-        self.board.reset_selected_index();
+        let current_folder = self.file_tree.get_current_folder();
+        self.board.change_files(current_folder);
+        let tiles_len = self.board.tiles.len();
+        match (previous_selected_index, tiles_len) {
+            (_, 0) => self.board.reset_selected_index(),
+            (Some(index), len) if index < len => self.board.set_selected_index(&index),
+            (Some(_), len) => self.board.set_selected_index(&(len - 1)),
+            (None, _) => self.board.reset_selected_index(),
+        }
     }
 }

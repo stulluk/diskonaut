@@ -1,4 +1,48 @@
 # diskonaut
+
+## This Fork: Purpose and Customization
+
+This repository is a personal fork of `diskonaut`.
+The goal of this fork is to adapt the deletion and keyboard UX to a workflow that is faster and safer for daily use.
+Changes are intentionally user-driven and may differ from upstream behavior.
+
+### Fork Changelog (this fork)
+
+- Switched delete trigger from `Backspace` to `Delete`.
+- Added `d` as an additional delete trigger (same behavior as `Delete`).
+- Updated the bottom help legend to show `Delete/d` for deletion.
+- Changed deletion popup text color to yellow for higher visibility.
+- Reworked deletion confirmation popup into a gdu-like selectable action row:
+- Added `no`, `yes`, and `don't ask me again` options.
+- Added left/right keyboard navigation for popup actions.
+- Added `Enter` to confirm the selected popup action.
+- Implemented session-scoped `don't ask me again` behavior for deletion.
+- Updated `q` behavior to exit immediately without exit confirmation popup.
+- Fixed post-delete selection behavior so the cursor stays near the deleted tile instead of jumping to top-left.
+
+### Static Binary Build in Docker (Linux musl)
+
+Build a static binary in Docker:
+
+```bash
+docker run --rm -v "$PWD":/workspace -w /workspace \
+  clux/muslrust:stable \
+  cargo build --release --target x86_64-unknown-linux-musl
+```
+
+Verify it is static:
+
+```bash
+file target/x86_64-unknown-linux-musl/release/diskonaut
+ldd target/x86_64-unknown-linux-musl/release/diskonaut || true
+```
+
+Install it to `/usr/local/bin`:
+
+```bash
+sudo install -m 0755 target/x86_64-unknown-linux-musl/release/diskonaut /usr/local/bin/diskonaut
+```
+
 ![demo](demo.gif)
 
 ## How does it work?
